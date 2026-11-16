@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AquaDev shrimp farm — digital twin</title>
-<meta name="description" content="Monitoring twin of the AquaDev Abu Dhabi shrimp farm: 28 grow-out tanks, water treatment, production KPIs, energy and alarms.">
+<title>AquaDev shrimp farm — Innovation Oasis monitoring platform</title>
+<meta name="description" content="Monitoring platform for the AquaDev shrimp farm at Innovation Oasis: digital twin, 6-hourly data rounds, KPIs and PDF reports.">
+<link rel="icon" href="io-mark.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <script type="importmap">
 { "imports": {
@@ -17,68 +18,91 @@
 </script>
 </head>
 <body>
-<div class="app">
-  <aside class="tb" aria-label="Project and navigation">
-    <div class="tb-cell tb-brand">
-      <svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><rect x="3" y="3" width="34" height="34" rx="9" fill="none" stroke="#7a2331" stroke-width="4"/><rect x="9.5" y="9.5" width="21" height="21" rx="5" fill="#3f8fa3"/><circle cx="20" cy="20" r="2.4" fill="#fff"/></svg>
-      <div><strong>AquaDev Abu Dhabi</strong><span>Shrimp farm twin</span></div>
+
+<main class="login" id="login">
+  <section class="login-form">
+    <img class="login-io" src="io-logo.webp" alt="Innovation Oasis, part of Silal" width="150" height="202">
+    <h1>AquaDev shrimp farm</h1>
+    <p class="lead">Monitoring platform for the grow-out pilot at Innovation Oasis, run with Aqua Development.</p>
+    <form id="login-form" novalidate>
+      <fieldset>
+        <legend>Sign in as</legend>
+        <label class="org"><input type="radio" name="role" value="io" checked>
+          <span class="org-logo"><img src="io-mark.webp" alt="" width="58" height="42"></span>
+          <span><b>Innovation Oasis</b><small>Monitor the farm and issue reports</small></span></label>
+        <label class="org"><input type="radio" name="role" value="ad">
+          <span class="org-logo dark"><img src="ad-logo.svg" alt="" width="46" height="34"></span>
+          <span><b>Aqua Development</b><small>Enter the farm data every 6 hours</small></span></label>
+      </fieldset>
+      <label class="fld">Your name<input name="name" autocomplete="name" required></label>
+      <label class="fld"><span id="code-label">Access code</span><input name="code" type="password" autocomplete="current-password" required minlength="6"></label>
+      <label class="fld" id="confirm-wrap" hidden>Repeat the access code<input name="confirm" type="password" autocomplete="new-password"></label>
+      <p class="help" id="code-help"></p>
+      <p class="err" id="login-err" role="alert" hidden></p>
+      <button class="btn primary big" id="login-go" type="submit">Sign in</button>
+    </form>
+    <p class="fine">Access codes and entered data are kept in this browser until a shared database is connected.</p>
+  </section>
+  <aside class="login-side" aria-hidden="true">
+    <svg class="login-plan" viewBox="0 0 85 50" preserveAspectRatio="xMidYMid slice"><g id="login-tanks"></g></svg>
+    <div class="login-side-text">
+      <p class="big">28 grow-out tanks.<br>One round of data every 6 hours.<br>One picture of the farm.</p>
+      <div class="partner"><span>Operated with</span><img src="ad-logo.svg" alt="Aqua Development" width="65" height="48"><b>Aqua Development</b></div>
     </div>
-    <div class="tb-cell"><label>Project name :</label><p>Shrimp farm, grow-out pilot</p></div>
-    <div class="tb-cell"><label>Owner :</label><p>Aqua Development Ltd. / AD Ports Group</p></div>
-    <div class="tb-cell tb-two"><div><label>Sector :</label><p>Al Sajaa</p></div><div><label>Plot :</label><p>8</p></div></div>
-    <nav class="tb-cell tb-nav" id="nav" aria-label="Views">
-      <label>Sheet :</label>
-      <button data-view="twin" class="on">Digital twin</button>
-      <button data-view="tanks">Tanks</button>
-      <button data-view="water">Water</button>
-      <button data-view="production">Production and KPIs</button>
-      <button data-view="energy">Energy and climate</button>
-      <button data-view="alarms">Alarms and log</button>
-      <button data-view="facility">Facility</button>
-      <button data-view="data">Data connections</button>
-    </nav>
-    <div class="tb-cell tb-src"><label>Data source :</label><p><span class="sim-dot"></span>Simulated telemetry</p><small>No sensors connected. See Data connections.</small></div>
-    <div class="tb-cell tb-two"><div><label>Drawings :</label><p>Rev 01</p></div><div><label>Dated :</label><p>01-11-2025</p></div></div>
+  </aside>
+</main>
+
+<div class="app" id="app" hidden>
+  <aside class="side" aria-label="Navigation">
+    <div class="side-brand"><img src="io-logo.webp" alt="Innovation Oasis, part of Silal" width="104" height="140"></div>
+    <p class="side-title">AquaDev shrimp farm<small>Monitoring platform</small></p>
+    <nav id="nav" aria-label="Pages"></nav>
+    <div class="side-partner"><span>Farm operated by</span><div><img src="ad-logo.svg" alt="" width="46" height="34"><b>Aqua Development</b></div></div>
   </aside>
 
   <div class="main">
     <header class="top">
       <h1 id="view-title">Digital twin</h1>
-      <div class="clock">
-        <div class="clock-t"><span id="clock-tag" class="tag live">Live</span><b id="clock">—</b><small>Gulf Standard Time</small></div>
-        <label class="scrub">Twin clock, hours from now<input id="scrub" type="range" min="-720" max="720" step="1" value="0" aria-label="Move the twin clock up to 30 days back or forward"></label>
-        <div class="seg" id="speed" role="group" aria-label="Clock speed">
-          <button data-live="1" title="Return to the present">Now</button>
-          <button data-speed="1" class="on" title="Real time">1×</button>
-          <button data-speed="600" title="Ten minutes per second">10 min/s</button>
-          <button data-speed="21600" title="Six hours per second">6 h/s</button>
-        </div>
-        <button class="alarm-btn" id="alarm-btn" title="Open alarms"><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 2a5 5 0 0 0-5 5v3.5L3.5 14h13L15 10.5V7a5 5 0 0 0-5-5zm-2 14a2 2 0 0 0 4 0z" fill="currentColor"/></svg><b>0</b><span>alarms</span></button>
+      <div class="round" role="group" aria-label="Data round shown">
+        <button class="ico" id="rn-prev" title="Earlier round" aria-label="Earlier round">‹</button>
+        <div class="asof"><div id="asof"></div><span id="asof-src"></span></div>
+        <button class="ico" id="rn-next" title="Later round" aria-label="Later round">›</button>
+        <button class="btn sm" id="rn-live" hidden>Back to latest</button>
       </div>
+      <div class="fresh" id="fresh"><i></i><div><b></b><small></small></div></div>
+      <button class="alarm-btn" id="alarm-btn" title="Readings outside limits"><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 2a5 5 0 0 0-5 5v3.5L3.5 14h13L15 10.5V7a5 5 0 0 0-5-5zm-2 14a2 2 0 0 0 4 0z" fill="currentColor"/></svg><b>0</b></button>
+      <div class="user"><div><b id="user-name"></b><small id="user-org"></small></div><button class="btn sm" id="signout">Sign out</button></div>
     </header>
 
-    <section class="view twin" id="v-twin">
-      <div id="twin-host"></div>
-      <div class="twin-tools">
-        <label class="fld">Colour tanks by<select id="color-by"></select></label>
-        <div id="legend"></div>
-        <details class="pop"><summary>Layers</summary><div id="layers" class="checks"></div></details>
-        <div class="cams" id="views" role="group" aria-label="Camera">
-          <button data-cam="iso">Overview</button><button data-cam="plan">Plan</button><button data-cam="aisle">Walk the aisle</button><button data-cam="wt">Water treatment</button><button data-cam="rooms">Service rooms</button>
+    <div class="content">
+      <section class="view twin" id="v-twin">
+        <div class="twin-tools">
+          <div class="cams" id="views" role="group" aria-label="View">
+            <button data-cam="campus">Campus</button><button data-cam="farm">Farm hall</button><button data-cam="inside" class="on">Inside</button><button data-cam="plan">Plan</button><button data-cam="aisle">Walk the aisle</button><button data-cam="wt">Water treatment</button>
+          </div>
+          <div class="seg" id="roof" role="group" aria-label="Roof"><span>Roof</span><button data-roof="auto">Auto</button><button data-roof="on">Closed</button><button data-roof="off" class="on">Open</button></div>
+          <label class="fld inline">Colour tanks by<select id="color-by"></select></label>
+          <div id="legend"></div>
+          <details class="pop"><summary>Layers</summary><div id="layers" class="checks"></div></details>
         </div>
-      </div>
-      <div class="ribbon" id="ribbon"></div>
-      <aside class="inspector" id="inspector" aria-live="polite"></aside>
-    </section>
-    <section class="view page" id="v-tanks" hidden></section>
-    <section class="view page" id="v-water" hidden></section>
-    <section class="view page" id="v-production" hidden></section>
-    <section class="view page" id="v-energy" hidden></section>
-    <section class="view page" id="v-alarms" hidden></section>
-    <section class="view page" id="v-facility" hidden></section>
-    <section class="view page" id="v-data" hidden></section>
+        <div id="twin-host"></div>
+        <div class="ribbon" id="ribbon"></div>
+        <aside class="inspector" id="inspector" aria-live="polite"></aside>
+      </section>
+      <section class="view page" id="v-entry" hidden></section>
+      <section class="view page" id="v-history" hidden></section>
+      <section class="view page" id="v-tanks" hidden></section>
+      <section class="view page" id="v-water" hidden></section>
+      <section class="view page" id="v-production" hidden></section>
+      <section class="view page" id="v-energy" hidden></section>
+      <section class="view page" id="v-alarms" hidden></section>
+      <section class="view page" id="v-reports" hidden></section>
+      <section class="view page" id="v-facility" hidden></section>
+      <section class="view page" id="v-data" hidden></section>
+    </div>
   </div>
 </div>
+<script>/* decorative tank grid on the sign-in page */(function(){var g=document.getElementById('login-tanks'),c=[1.6,12.8,23.2,34.2,44.6,55.6,66],r=[0.9,13.6,25.9,38.5],h='';for(var i=0;i<4;i++)for(var j=0;j<7;j++)h+='<rect x="'+c[j]+'" y="'+r[i]+'" width="10" height="10.2" rx="2.4"/>';g.innerHTML=h;})();</script>
 <script type="module" src="app.js"></script>
 </body>
 </html>
