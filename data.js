@@ -11,14 +11,14 @@ export const STATUS = { grow: ['Grow-out', 'Grow-out'], harvest: ['Harvesting', 
 const TZ = 4 * HOUR, KEY = 'aquadev.db.v1', GRACE = 45 * 60000;
 export const slotOf = t => Math.floor((t + TZ) / SLOT) * SLOT - TZ;
 
-let db = { sample: true, liveFrom: null, rounds: [], events: [] }, memo = new Map();
-const touch = () => { memo = new Map(); db.rounds.sort((a, b) => a.t - b.t); db.events.sort((a, b) => a.t - b.t); };
+let db = { sample: true, liveFrom: null, rounds: [], events: [], alarms: [] }, memo = new Map();
+const touch = () => { memo = new Map(); if (!Array.isArray(db.alarms)) db.alarms = []; db.rounds.sort((a, b) => a.t - b.t); db.events.sort((a, b) => a.t - b.t); db.alarms.sort((a, b) => b.t - a.t); };
 export function load() { try { const raw = localStorage.getItem(KEY); if (raw) db = { ...db, ...JSON.parse(raw) }; } catch { /* storage unavailable */ } touch(); return db; }
 function save() { touch(); try { localStorage.setItem(KEY, JSON.stringify(db)); return true; } catch { return false; } }
 export const getDb = () => db;
-export function replaceDb(o) { if (!o || !Array.isArray(o.rounds) || !Array.isArray(o.events)) throw new Error('This file is not an AquaDev data file.'); db = { sample: o.sample !== false, liveFrom: o.liveFrom ?? null, rounds: o.rounds, events: o.events }; return save(); }
+export function replaceDb(o) { if (!o || !Array.isArray(o.rounds) || !Array.isArray(o.events)) throw new Error('This file is not an AquaDev data file.'); db = { sample: o.sample !== false, liveFrom: o.liveFrom ?? null, rounds: o.rounds, events: o.events, alarms: Array.isArray(o.alarms) ? o.alarms : [] }; return save(); }
 export function setSample(on) { db.sample = !!on; return save(); }
-export function clearRecords() { db = { sample: true, liveFrom: null, rounds: [], events: [] }; return save(); }
+export function clearRecords() { db = { sample: true, liveFrom: null, rounds: [], events: [], alarms: [] }; return save(); }
 const sampleOn = t => db.sample !== false && (db.liveFrom == null || t < db.liveFrom);
 
 // ---- rounds and events -----------------------------------------------------------------
@@ -30,6 +30,16 @@ export function submitRound(r) {
 }
 export function addEvent(e) { db.events.push(e); return save(); }
 const lastEvent = (i, type, t) => { for (let k = db.events.length - 1; k >= 0; k--) { const e = db.events[k]; if (e.tank === i && e.type === type && e.t <= t) return e; } return null; };
+
+// ---- alarms: recorded by people, never raised automatically ------------------------------
+export const ALARM_TYPES = ['Low dissolved oxygen', 'Aeration failure', 'Pump or circulation failure', 'Water temperature', 'Water quality', 'Abnormal mortality', 'Disease suspected', 'Power outage', 'Water treatment', 'Equipment fault', 'Hall climate', 'Other'];
+export const AREAS = { farm: 'Whole farm', wt: 'Water treatment', power: 'Electrical supply', hall: 'Hall climate' };
+export const areaName = a => a.tank ? 'Tank ' + String(a.tank).padStart(2, '0') : AREAS[a.area] || 'Whole farm';
+export function addAlarm(a) { db.alarms.push({ id: 'a' + Date.now().toString(36) + Math.floor(Math.random() * 1e4), status: 'open', acks: [], ...a }); return save(); }
+export function resolveAlarm(id, { by, note, t }) { const a = db.alarms.find(x => x.id === id); if (!a) return false; Object.assign(a, { status: 'resolved', rt: t, rby: by, rnote: note || '' }); return save(); }
+export function ackAlarm(id, by, t) { const a = db.alarms.find(x => x.id === id); if (!a) return false; a.acks = a.acks || []; if (!a.acks.some(k => k.by === by)) a.acks.push({ by, t }); return save(); }
+export const alarmsAt = t => db.alarms.filter(a => a.t <= t && (a.status !== 'resolved' || a.rt > t)).sort((a, b) => b.sev - a.sev || b.t - a.t);
+export const alarmsBetween = (tA, tB) => db.alarms.filter(a => a.t <= tB && (a.status !== 'resolved' || a.rt >= tA) || (a.t >= tA && a.t <= tB));
 
 export function freshness(now) {
   const slot = slotOf(now), live = db.liveFrom != null, cur = roundFor(slot), last = roundAt(now); let missed = 0;
@@ -65,11 +75,12 @@ export function reading(i, t) {
   if (sampleOn(t)) { const ts = slotOf(t), b = S.reading(i, ts); return { ...b, st: { ...b.st, src: 'sample' }, src: 'sample', at: ts, by: 'Sample data' }; }
   return { st: tankState(i, t), wet: false, src: 'none', measured: {} };
 }
-export function tankSeverity(i, t) {
-  const r = reading(i, t); if (!r.wet || !r.st.stocked) return { sev: 0, r };
-  let s = 0; for (const p of PARAMS) s = Math.max(s, severity(p, r[p])); if (r.st.density > DENSITY_LIMIT) s = Math.max(s, 2); return { sev: s, r };
+export function tankSeverity(i, t, open = alarmsAt(t)) { // sev: worst open recorded alarm on the tank; flag: worst reading outside its limits
+  const r = reading(i, t); let sev = 0, flag = 0; for (const a of open) if (a.tank === i) sev = Math.max(sev, a.sev);
+  if (r.wet && r.st.stocked) { for (const p of PARAMS) flag = Math.max(flag, severity(p, r[p])); if (r.st.density > DENSITY_LIMIT) flag = Math.max(flag, 2); }
+  return { sev, flag, r };
 }
-export function alarmsAt(t, now = t) {
+export function flagsAt(t) {
   const list = [];
   for (const tk of TANKS) { const r = reading(tk.id, t); if (!r.wet || !r.st.stocked) continue;
     for (const p of PARAMS) { const s = severity(p, r[p]); if (s >= 2) list.push({ tank: tk.id, param: p, value: r[p], sev: s, text: `${LIMITS[p].label} ${(+r[p]).toFixed(LIMITS[p].dp)} ${LIMITS[p].unit}`, at: r.at }); }
@@ -105,7 +116,8 @@ export function growthSeries(i, t) {
 // ---- log and KPIs ----------------------------------------------------------------------
 export function eventLog(tA, tB) {
   const ev = [], cut = db.liveFrom != null ? Math.min(db.liveFrom, tB) : tB;
-  if (db.sample !== false && cut > tA) for (const e of S.eventLog(tA, cut)) ev.push({ ...e, src: 'sample' });
+  if (db.sample !== false && cut > tA) for (const e of S.eventLog(tA, cut)) if (e.kind !== 'alarm') ev.push({ ...e, src: 'sample' });
+  for (const a of db.alarms) { if (a.t >= tA && a.t <= tB) ev.push({ t: a.t, tank: a.tank || null, where: areaName(a), kind: 'alarm', sev: a.sev, src: 'entered', by: a.by, text: `${a.type}${a.text ? ' — ' + a.text : ''}` }); if (a.status === 'resolved' && a.rt >= tA && a.rt <= tB) ev.push({ t: a.rt, tank: a.tank || null, where: areaName(a), kind: 'resolved', src: 'entered', by: a.rby, text: `Alarm resolved: ${a.type}${a.rnote ? ' — ' + a.rnote : ''}` }); }
   for (const e of db.events) if (e.t >= tA && e.t <= tB) ev.push({ t: e.t, tank: e.tank, kind: 'op', src: 'entered', by: e.by, text: e.type === 'stock' ? `Stocked ${(+e.n || 0).toLocaleString('en')} juveniles` : `Harvest ${Math.round(e.kg || 0)} kg${e.size ? ' at ' + (+e.size).toFixed(1) + ' g' : ''}` });
   for (const r of db.rounds) if (r.t >= tA && r.t <= tB) { let bad = 0, blank = 0; for (const tk of TANKS) { const x = r.tanks[tk.id]; if (!x || x.s !== 'grow') continue; for (const p of PARAMS) { if (x[p] == null) blank++; else if (severity(p, x[p]) >= 2) bad++; } }
     ev.push({ t: r.at || r.t, tank: null, kind: 'round', src: 'entered', by: r.by, slot: r.t, bad, blank, text: `Data round entered by ${r.by || 'AD'}${bad ? ` — ${bad} reading${bad > 1 ? 's' : ''} outside limits` : ''}${r.note ? ` — “${r.note}”` : ''}` }); }

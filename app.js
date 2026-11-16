@@ -8,16 +8,18 @@ import { V } from './views.js';
 import { renderEntry, renderHistory, openSlot, slotName } from './entry.js';
 
 const DAY = D.DAY, HOUR = D.HOUR;
-const NAV = { io: [['twin', 'Digital twin'], ['tanks', 'Tanks'], ['water', 'Water'], ['production', 'Production and KPIs'], ['energy', 'Energy and climate'], ['alarms', 'Alarms and log'], ['reports', 'Reports'], ['facility', 'Facility'], ['data', 'Data file']],
-  ad: [['entry', 'Update data'], ['history', 'Round history'], ['twin', 'Digital twin'], ['tanks', 'Tanks'], ['alarms', 'Alarms and log'], ['data', 'Data file']] };
+const MON = [['twin', 'Digital twin'], ['tanks', 'Tanks'], ['water', 'Water'], ['production', 'Production and KPIs'], ['energy', 'Energy and climate'], ['alarms', 'Alarms and log'], ['reports', 'Reports'], ['facility', 'Facility']];
+const NAV = { io: [...MON, ['data', 'Data file'], ['account', 'My account']],
+  ad: [['entry', 'Update data'], ['history', 'Round history'], ['alarms', 'Alarms and log'], ['twin', 'Digital twin'], ['tanks', 'Tanks'], ['data', 'Data file'], ['account', 'My account']],
+  superadmin: [...MON, ['entry', 'Update data'], ['history', 'Round history'], ['users', 'Users'], ['data', 'Data file'], ['account', 'My account']] };
 const state = { view: null, sel: null, colorBy: 'status', param: 'do', sort: 'id', t: null, acks: new Set(), hoverChart: false, session: null,
   layers: { labels: true, piping: true, sensors: true, structure: true, grid: false, campus: true } };
 let twin = null, snap = null, lastFull = 0;
 const viewT = () => state.t ?? Date.now();
 
 function snapshot(t) {
-  const tanks = new Map(); for (const tk of TANKS) { const { sev, r } = D.tankSeverity(tk.id, t); tanks.set(tk.id, { tk, r, st: r.st, sev }); }
-  return { t, tanks, farm: D.farm(t), alarms: D.alarmsAt(t), wt: D.wtState(t), fresh: D.freshness(Date.now()) };
+  const alarms = D.alarmsAt(t), tanks = new Map(); for (const tk of TANKS) { const { sev, flag, r } = D.tankSeverity(tk.id, t, alarms); tanks.set(tk.id, { tk, r, st: r.st, sev, flag }); }
+  return { t, tanks, farm: D.farm(t), alarms, flags: D.flagsAt(t), wt: D.wtState(t), fresh: D.freshness(Date.now()) };
 }
 
 // ---- tank panel ------------------------------------------------------------------------
@@ -28,7 +30,8 @@ function inspectorHtml() {
       <div class="stats two">${stat('Tanks in grow-out', f.grow + ' of 28')}${stat('Shrimp in water', num(f.count / 1e6, 2) + ' M')}${stat('Standing biomass', num(f.biomass / 1000, 2) + ' t')}${stat('Feed, last 24 h', num(f.feed, 0) + ' kg')}
       ${stat('Electrical load', v(f.power.total, 0, ' kW'))}${stat('Hall air', v(f.climate.room, 1, ' °C'), f.climate.rh == null ? '' : num(f.climate.rh * 100, 0) + ' % RH')}</div>
       <h3>Next harvests</h3><table class="mini"><tbody>${[...snap.tanks.values()].filter(x => x.st.stocked).sort((a, b) => a.st.harvestAt - b.st.harvestAt).slice(0, 6).map(x => `<tr data-tank="${x.tk.id}"><td>${x.tk.name}</td><td>${fmtDate(x.st.harvestAt)}</td><td class="r">${num(x.st.daysToHarvest, 0)} d</td><td class="r">${num(x.st.projHarvestKg, 0)} kg</td></tr>`).join('') || '<tr><td class="q">No tank is in grow-out.</td></tr>'}</tbody></table>
-      <h3>Readings outside limits</h3>${snap.alarms.length ? `<ul class="alist">${snap.alarms.slice(0, 6).map(a => `<li data-tank="${a.tank}">${chip(a.sev, 'Tank ' + a.tank)}<span>${esc(a.text)}</span></li>`).join('')}</ul>` : `<p class="quiet">None. ${crit ? '' : 'All stocked tanks are inside their warning limits.'}</p>`}`; }
+      <h3>Open alarms</h3>${snap.alarms.length ? `<ul class="alist">${snap.alarms.slice(0, 6).map(a => `<li ${a.tank ? `data-tank="${a.tank}"` : 'data-go="alarms"'}>${chip(a.sev, D.areaName(a))}<span>${esc(a.type)}</span></li>`).join('')}</ul>` : '<p class="quiet">No alarm is open.</p>'}
+      <p class="quiet">${snap.flags.length ? `${snap.flags.length} reading${snap.flags.length > 1 ? 's are' : ' is'} outside limits in this round.` : 'Every reading of this round is inside its limits.'}</p>`; }
   const x = snap.tanks.get(state.sel), tk = x.tk, st = x.st, r = x.r, L = LIMITS[state.param];
   let body = '';
   if (st.stocked) {
@@ -45,8 +48,10 @@ function inspectorHtml() {
     body += `<p class="phase-note">${esc(st.label)}.${st.nextStockAt && st.phase !== 'idle' ? ` Next stocking planned ${fmtDate(st.nextStockAt)}.` : ''}${st.lastHarvestKg ? ` Last harvest ${num(st.lastHarvestKg, 0)} kg.` : ''}</p>
       ${r.wet ? `<div class="stats two">${stat('Water depth', r.level == null ? '—' : num(r.level, 2) + ' m')}${stat('Temperature', r.temp == null ? '—' : num(r.temp, 1) + ' °C')}${stat('Salinity', r.sal == null ? '—' : num(r.sal, 1) + ' ppt')}${stat('pH', r.ph == null ? '—' : num(r.ph, 2))}</div>` : ''}`;
   }
+  const mine = snap.alarms.filter(a => a.tank === tk.id);
+  body = (mine.length ? `<ul class="alist boxed">${mine.map(a => `<li data-go="alarms">${chip(a.sev, D.SEV[a.sev] + ' alarm')}<span><b>${esc(a.type)}</b>${a.text ? ' — ' + esc(a.text) : ''}</span></li>`).join('')}</ul>` : '') + body;
   body += `<h3>Source of these values</h3><p class="srcline">${r.src === 'entered' ? `Round ${slotName(r.at)}, entered by ${esc(r.by || 'Aqua Development')}.` : r.src === 'sample' ? 'Generated sample history. Aqua Development has not submitted a real round for this time.' : 'No data has been entered for this tank.'}</p>
-    <div class="row"><button class="btn" data-act="focus">Show in the twin</button>${state.session.role === 'ad' ? '<button class="btn ghost" data-go="entry">Update this round</button>' : ''}</div>`;
+    <div class="row"><button class="btn" data-act="focus">Show in the twin</button>${A.can.alarm(state.session.role) ? '<button class="btn ghost" data-go="alarms">Record an alarm</button>' : ''}</div>`;
   return `<header><button class="x" data-act="close" aria-label="Close tank panel">×</button><h2>${tk.name}</h2><p>${tk.tag}, grid ${tk.grid}, ${TANK_SPEC.footprint} m², centre drain Ø${TANK_SPEC.drainDia} m</p>${phaseChip(x)} ${srcTag(r.src)}</header>${body}`;
 }
 
@@ -56,7 +61,7 @@ V.twin = { title: 'Digital twin', render(root, ctx, full) {
   else if (full) $('#twin-host').innerHTML = `<div class="fallback"><p>The 3D view is unavailable in this browser (WebGL could not start). The plan is shown instead.</p>${planSvg(snap, { h: 520, sel: state.sel, colorBy: state.colorBy })}</div>`;
   const f = snap.farm, crit = snap.alarms.filter(a => a.sev >= 3).length;
   $('#ribbon').innerHTML = stat('Standing biomass', num(f.biomass / 1000, 2) + ' t') + stat('In grow-out', f.grow + ' of 28') + stat('Feed, last 24 h', num(f.feed, 0) + ' kg') + stat('Load', f.power.total == null ? '—' : num(f.power.total, 0) + ' kW')
-    + stat('Next harvest', f.next ? 'Tank ' + f.next.tank : '—', f.next ? fmtDate(f.next.at) + ', ' + num(f.next.kg, 0) + ' kg' : '') + stat('Outside limits', String(snap.alarms.length), crit ? crit + ' critical' : 'none critical');
+    + stat('Next harvest', f.next ? 'Tank ' + f.next.tank : '—', f.next ? fmtDate(f.next.at) + ', ' + num(f.next.kg, 0) + ' kg' : '') + stat('Open alarms', String(snap.alarms.length), crit ? crit + ' critical' : snap.flags.length ? snap.flags.length + ' readings outside limits' : 'none critical');
   if (full) { $('#inspector').innerHTML = inspectorHtml(); $('#legend').innerHTML = legendHtml(state.colorBy); }
 } };
 V.tanks = { title: 'Tanks', render(root) {
@@ -69,8 +74,8 @@ V.tanks = { title: 'Tanks', render(root) {
       ${cell(x, 'do')}${cell(x, 'temp')}${cell(x, 'ph')}${cell(x, 'tan')}<td class="r">${x.st.stocked ? num(x.st.feedToday, 1) : '<span class="q">—</span>'}</td><td>${x.st.stocked ? fmtDate(x.st.harvestAt) : '<span class="q">—</span>'}</td><td>${x.st.stocked ? spark(D.series(x.tk.id, 'do', snap.t - 7 * DAY, snap.t), '#3fa8cd') : ''}</td></tr>`).join('')}</tbody></table></div></div>
     <aside class="card tside" id="tank-side">${inspectorHtml()}</aside></div>`;
 } };
-V.entry = { title: 'Update data', render(root, ctx, full) { if (full === 'nav' || !root.dataset.bound || ctx.reset) renderEntry(root, { session: state.session, reset: ctx.reset, slot: ctx.slot, onSaved: () => { tick('keep'); } }); } };
-V.history = { title: 'Round history', render(root) { renderHistory(root, { session: state.session }); } };
+V.entry = { title: 'Update data', render(root, ctx, full) { if (full === 'nav' || !root.dataset.bound || ctx.reset) renderEntry(root, { session: state.session, canEnter: A.can.enter(state.session.role), reset: ctx.reset, slot: ctx.slot, onSaved: () => { tick('keep'); } }); } };
+V.history = { title: 'Round history', render(root) { renderHistory(root, { session: state.session, canEnter: A.can.enter(state.session.role) }); } };
 
 // ---- shell -------------------------------------------------------------------------------
 function header() {
@@ -86,7 +91,8 @@ function header() {
 const ctxFor = extra => ({ snap, state, session: state.session, twin, rerender: () => tick(true), ...extra });
 function tick(mode, extra) {
   if (!state.session) return; const now = Date.now(); snap = snapshot(viewT()); header();
-  const full = mode === true || mode === 'nav' || mode === 'keep' || (!state.hoverChart && now - lastFull > 60000); if (full) lastFull = now;
+  const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && ae.closest('.page');
+  const full = mode === true || mode === 'nav' || mode === 'keep' || (!state.hoverChart && !typing && now - lastFull > 60000); if (full) lastFull = now;
   const v = V[state.view], root = $('#v-' + state.view); if (!v || !root) return;
   if (state.view === 'twin') v.render(root, ctxFor(extra), full);
   else if (state.view === 'entry') { if (mode === 'nav' || (extra && extra.reset)) v.render(root, ctxFor(extra), 'nav'); }
@@ -103,7 +109,7 @@ function stepRound(dir) { const cur = D.slotOf(viewT()), nx = cur + dir * D.SLOT
 
 async function startApp() {
   const s = state.session, role = A.ROLES[s.role]; document.body.dataset.role = s.role;
-  $('#login').hidden = true; $('#app').hidden = false; $('#user-name').textContent = s.name; $('#user-org').textContent = role.org;
+  $('#login').hidden = true; $('#app').hidden = false; $('#user-name').textContent = s.name; $('#user-org').textContent = role.label;
   $('#nav').innerHTML = NAV[s.role].map(([k, l]) => `<button data-view="${k}">${l}</button>`).join('');
   D.load(); snap = snapshot(viewT());
   if (!twin && !startApp.tried) { startApp.tried = true; try { const { Twin } = await import('./twin.js');
@@ -114,11 +120,14 @@ async function startApp() {
 
 function bind() {
   initHover(h => { state.hoverChart = h; });
-  // sign-in
-  const form = $('#login-form'), sync = () => { const role = form.role.value, first = role && !A.hasCode(role); $('#confirm-wrap').hidden = !first; $('#code-label').textContent = first ? 'Create an access code' : 'Access code'; $('#code-help').textContent = first ? `First sign-in for ${A.ROLES[role].org} on this computer: choose a code of 6 characters or more. You will use it next time.` : ''; $('#login-go').textContent = first ? 'Create code and sign in' : 'Sign in'; $$('.org').forEach(o => o.classList.toggle('on', o.querySelector('input').checked)); };
-  form.addEventListener('change', sync); sync();
-  form.addEventListener('submit', async e => { e.preventDefault(); const r = await A.signIn(form.role.value, form.name.value, form.code.value, form.confirm.value); const err = $('#login-err'); if (r.error) { err.textContent = r.error; err.hidden = false; return; } err.hidden = true; form.code.value = form.confirm.value = ''; state.session = r.session; startApp(); });
-  $('#signout').addEventListener('click', () => { A.signOut(); state.session = null; state.sel = null; state.t = null; $('#app').hidden = true; $('#login').hidden = false; sync(); });
+  // sign-in and first-run setup
+  const form = $('#login-form'), setupF = $('#setup-form'), err = $('#login-err'), mode = () => { const first = A.needsSetup(); setupF.hidden = !first; form.hidden = first; $('#login-lead').textContent = first ? 'First use on this computer: create the super admin account. The super admin then creates every other user.' : 'Sign in with the username and password the super admin gave you.'; err.hidden = true; };
+  const enter = r => { if (r.error) { err.textContent = r.error; err.hidden = false; return; } err.hidden = true; form.reset(); setupF.reset(); state.session = r.session; startApp(); };
+  form.addEventListener('submit', async e => { e.preventDefault(); enter(await A.signIn(form.username.value, form.password.value)); });
+  setupF.addEventListener('submit', async e => { e.preventDefault(); enter(await A.setup({ name: setupF.fullname.value, username: setupF.username.value, password: setupF.password.value, again: setupF.again.value })); });
+  $('#setup-file').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; f.text().then(t => { const o = JSON.parse(t); if (!A.importUsers(o.users)) throw new Error('nousers'); D.replaceDb(o); mode(); toast('Accounts and data loaded. Sign in with your username and password.', 'ok'); }).catch(() => { err.textContent = 'That file does not hold AquaDev accounts. Use a data file downloaded by a super admin.'; err.hidden = false; }); });
+  mode();
+  $('#signout').addEventListener('click', () => { A.signOut(); state.session = null; state.sel = null; state.t = null; $('#app').hidden = true; $('#login').hidden = false; mode(); });
   // shell
   $('#nav').addEventListener('click', e => { const b = e.target.closest('button[data-view]'); if (b) go(b.dataset.view); });
   $('#rn-prev').addEventListener('click', () => stepRound(-1)); $('#rn-next').addEventListener('click', () => stepRound(1)); $('#rn-live').addEventListener('click', () => { state.t = null; tick(true); });
@@ -140,7 +149,7 @@ function bind() {
     if (to) return go(to.dataset.go);
     if (act) { const a = act.dataset.act;
       if (a === 'close') select(null); else if (a === 'focus') { go('twin'); twin && twin.focus(state.sel); }
-      else { const v = V[state.view]; v && v.act && v.act(a, ctxFor()); }
+      else { const v = V[state.view]; v && v.act && v.act(a, ctxFor(), act); }
       return; }
     if (tk && !e.target.closest('#twin-host')) { const id = +tk.dataset.tank; if (state.view === 'twin' || state.view === 'tanks') select(id, { fly: state.view === 'twin' }); else { state.sel = id; twin && twin.select(id); go('tanks'); } }
   });

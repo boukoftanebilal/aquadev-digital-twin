@@ -141,6 +141,15 @@ input.num.w { background: #fff1c9; border-color: #e0a100; } input.num.c { backgr
 .card.submit { display: flex; gap: 18px; align-items: flex-end; flex-wrap: wrap; position: sticky; bottom: 0; border-color: var(--io); } .fld.grow { flex: 1; min-width: 260px; } .submit-r { display: grid; gap: 8px; justify-items: end; } #en-sum { margin: 0; font-size: 13.5px; color: var(--ink2); } #en-sum .warn { color: #8a5a00; } #en-sum .err { color: #a41f1f; }
 .filebtn { cursor: pointer; }
 
+/* alarms, users, account */
+.alarm-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 14px; align-items: start; } .span2 { grid-column: span 2; }
+.sevpick { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; } .sevpick legend { float: left; width: 100%; padding: 0; margin-bottom: 4px; font-size: 12.5px; font-weight: 600; color: var(--ink2); } #login-lead { margin: 0 0 14px; } .sevpick label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; } .sevpick input { accent-color: var(--io-d); width: 16px; height: 16px; }
+.user-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 14px; align-items: start; } .acct-form { display: grid; gap: 12px; max-width: 380px; }
+.suggest { background: var(--io-l); border: 1px solid #b6dcea; border-radius: 8px; padding: 9px 12px; margin: 12px 0 0; font-size: 13.5px; } .suggest code { font-size: 15px; font-weight: 700; background: #fff; padding: 2px 8px; user-select: all; }
+input.inl { border: 1.5px solid var(--line); border-radius: 6px; padding: 3px 8px; font-size: 13px; width: 150px; } .nowrap { white-space: nowrap; } .row .err { align-self: center; }
+.alist.boxed { margin: 0 0 12px; } .alist.boxed li { background: #fff6dc; border: 1px solid #f1d58a; border-radius: 8px; padding: 6px 9px; align-items: flex-start; }
+label.link { cursor: pointer; }
+
 /* reports */
 .rtypes { display: grid; gap: 8px; } .rtype { display: grid; gap: 1px; border: 1.5px solid var(--line); border-radius: var(--r); padding: 10px 14px; cursor: pointer; position: relative; } .rtype input { position: absolute; opacity: 0; } .rtype b { font-size: 14.5px; } .rtype span { color: var(--muted); font-size: 13px; }
 .rtype.on { border-color: var(--io-d); background: var(--io-l); box-shadow: 0 0 0 1px var(--io-d) inset; } .rtype:has(input:focus-visible) { outline: 2.5px solid var(--io-d); outline-offset: 2px; }
@@ -162,7 +171,7 @@ input.num.w { background: #fff1c9; border-color: #e0a100; } input.num.c { backgr
 .plan .pt { cursor: pointer; } .plan .pt rect { stroke: #6e1f2e; stroke-width: .5; } .plan .pt.sel rect { stroke: var(--navy); stroke-width: 1.1; } .plan text { font: 700 3px var(--sans); text-anchor: middle; fill: var(--ink); pointer-events: none; } .plan .gl { font-size: 2.1px; fill: var(--muted); font-weight: 600; }
 .fallback { padding: 20px; } .spark { display: block; }
 
-@media (max-width: 1280px) { .cards { grid-template-columns: 1fr; } .stats.six { grid-template-columns: repeat(3, 1fr); } .farm-grid { grid-template-columns: repeat(3, 1fr); } .split, .split.rep { grid-template-columns: 1fr; } .split .tside { position: static; max-height: none; } .card.preview { height: 80vh; } }
+@media (max-width: 1280px) { .alarm-form, .user-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cards { grid-template-columns: 1fr; } .stats.six { grid-template-columns: repeat(3, 1fr); } .farm-grid { grid-template-columns: repeat(3, 1fr); } .split, .split.rep { grid-template-columns: 1fr; } .split .tside { position: static; max-height: none; } .card.preview { height: 80vh; } }
 @media (max-width: 900px) {
   .login { grid-template-columns: 1fr; } .login-side { min-height: 240px; }
   .app { grid-template-columns: 1fr; height: auto; } .side { flex-direction: row; align-items: center; overflow-x: auto; } .side-brand { padding: 6px 10px; border-bottom: 0; } .side-brand img { width: 42px; } .side-title, .side-partner { display: none; } #nav { display: flex; padding: 6px; } #nav button { white-space: nowrap; }

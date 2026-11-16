@@ -31,14 +31,14 @@ export function tankVisual(x, colorBy) {
 }
 export function legendHtml(colorBy) {
   const m = MODES[colorBy];
-  if (m.kind === 'status') return `<ul class="lg-list"><li><i style="background:${TONE.ok}"></i>In range</li><li><i style="background:${TONE.warn}"></i>Warning</li><li><i style="background:${TONE.crit}"></i>Critical</li><li><i style="background:${TONE.fill}"></i>Filling or harvesting</li><li><i class="hollow"></i>Drained</li></ul>`;
+  if (m.kind === 'status') return `<ul class="lg-list"><li><i style="background:${TONE.ok}"></i>No open alarm</li><li><i style="background:${TONE.warn}"></i>Warning alarm</li><li><i style="background:${TONE.crit}"></i>Critical alarm</li><li><i style="background:${TONE.fill}"></i>Filling or harvesting</li><li><i class="hollow"></i>Drained</li></ul>`;
   if (m.kind === 'seq') return `<div class="lg-bar" style="background:linear-gradient(90deg,${SEQ.join(',')})"></div><div class="lg-ax"><span>0</span><span>${num(m.max / 2, 0)}</span><span>${num(m.max, 0)} ${m.unit}</span></div>`;
   const L = LIMITS[m.param];
   return `<div class="lg-bar" style="background:linear-gradient(90deg,${DIV.lo},${DIV.mid} 40%,${DIV.mid} 60%,${DIV.hi})"></div><div class="lg-ax"><span>low</span><span>target ${L.t0}–${L.t1} ${L.unit}</span><span>high</span></div>`;
 }
 
 export const chip = (sev, text) => `<span class="chip s${sev}"><i></i>${esc(text)}</span>`;
-export const phaseChip = x => x.st.stocked ? chip(x.sev === 0 ? 0 : x.sev, x.sev >= 2 ? D.SEV[x.sev] : 'Grow-out') : `<span class="chip sx" title="${esc(x.st.label)}"><i></i>${esc(x.st.short)}</span>`;
+export const phaseChip = x => x.st.stocked ? chip(x.sev === 0 ? 0 : x.sev, x.sev >= 2 ? D.SEV[x.sev] + ' alarm' : 'Grow-out') : `<span class="chip sx" title="${esc(x.st.label)}"><i></i>${esc(x.st.short)}</span>`;
 export function rangeBar(p, v) {
   if (v == null) return '<div class="rb none"></div>';
   const L = LIMITS[p], pos = x => Math.min(100, Math.max(0, (x - L.min) / (L.max - L.min) * 100));

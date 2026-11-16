@@ -24,24 +24,22 @@
     <img class="login-io" src="io-logo.webp" alt="Innovation Oasis, part of Silal" width="150" height="202">
     <h1>AquaDev shrimp farm</h1>
     <p class="lead">Monitoring platform for the grow-out pilot at Innovation Oasis, run with Aqua Development.</p>
+    <p class="help" id="login-lead"></p>
     <form id="login-form" novalidate>
-      <fieldset>
-        <legend>Sign in as</legend>
-        <label class="org"><input type="radio" name="role" value="io" checked>
-          <span class="org-logo"><img src="io-mark.webp" alt="" width="58" height="42"></span>
-          <span><b>Innovation Oasis</b><small>Monitor the farm and issue reports</small></span></label>
-        <label class="org"><input type="radio" name="role" value="ad">
-          <span class="org-logo dark"><img src="ad-logo.svg" alt="" width="46" height="34"></span>
-          <span><b>Aqua Development</b><small>Enter the farm data every 6 hours</small></span></label>
-      </fieldset>
-      <label class="fld">Your name<input name="name" autocomplete="name" required></label>
-      <label class="fld"><span id="code-label">Access code</span><input name="code" type="password" autocomplete="current-password" required minlength="6"></label>
-      <label class="fld" id="confirm-wrap" hidden>Repeat the access code<input name="confirm" type="password" autocomplete="new-password"></label>
-      <p class="help" id="code-help"></p>
-      <p class="err" id="login-err" role="alert" hidden></p>
-      <button class="btn primary big" id="login-go" type="submit">Sign in</button>
+      <label class="fld">Username<input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
+      <label class="fld">Password<input name="password" type="password" autocomplete="current-password" required></label>
+      <button class="btn primary big" type="submit">Sign in</button>
     </form>
-    <p class="fine">Access codes and entered data are kept in this browser until a shared database is connected.</p>
+    <form id="setup-form" novalidate hidden>
+      <label class="fld">Your full name<input name="fullname" autocomplete="name" required></label>
+      <label class="fld">Username<input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required><small>3 to 32 letters, digits, dot, dash or underscore</small></label>
+      <label class="fld">Password<input name="password" type="password" autocomplete="new-password" required><small>At least 8 characters</small></label>
+      <label class="fld">Repeat password<input name="again" type="password" autocomplete="new-password" required></label>
+      <button class="btn primary big" type="submit">Create super admin and sign in</button>
+      <p class="fine">Already set up on another computer? <label class="link">Load its data file<input type="file" id="setup-file" accept="application/json,.json" hidden></label> to bring the accounts and data here.</p>
+    </form>
+    <p class="err" id="login-err" role="alert" hidden></p>
+    <p class="fine">Accounts and entered data are kept in this browser until a shared database is connected.</p>
   </section>
   <aside class="login-side" aria-hidden="true">
     <svg class="login-plan" viewBox="0 0 85 50" preserveAspectRatio="xMidYMid slice"><g id="login-tanks"></g></svg>
@@ -70,7 +68,7 @@
         <button class="btn sm" id="rn-live" hidden>Back to latest</button>
       </div>
       <div class="fresh" id="fresh"><i></i><div><b></b><small></small></div></div>
-      <button class="alarm-btn" id="alarm-btn" title="Readings outside limits"><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 2a5 5 0 0 0-5 5v3.5L3.5 14h13L15 10.5V7a5 5 0 0 0-5-5zm-2 14a2 2 0 0 0 4 0z" fill="currentColor"/></svg><b>0</b></button>
+      <button class="alarm-btn" id="alarm-btn" title="Open alarms"><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 2a5 5 0 0 0-5 5v3.5L3.5 14h13L15 10.5V7a5 5 0 0 0-5-5zm-2 14a2 2 0 0 0 4 0z" fill="currentColor"/></svg><b>0</b></button>
       <div class="user"><div><b id="user-name"></b><small id="user-org"></small></div><button class="btn sm" id="signout">Sign out</button></div>
     </header>
 
@@ -99,6 +97,8 @@
       <section class="view page" id="v-reports" hidden></section>
       <section class="view page" id="v-facility" hidden></section>
       <section class="view page" id="v-data" hidden></section>
+      <section class="view page" id="v-users" hidden></section>
+      <section class="view page" id="v-account" hidden></section>
     </div>
   </div>
 </div>
